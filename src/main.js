@@ -221,7 +221,7 @@ function initGlobalParallax() {
             
             // Get the end position in %
             const endAttr = trigger.getAttribute("data-parallax-end")
-            const endVal = endAttr !== null ? parseFloat(endAttr) : -40
+            const endVal = endAttr !== null ? parseFloat(endAttr) : -20
             
             // Get the start value of the ScrollTrigger
             const scrollStartRaw = trigger.getAttribute("data-parallax-scroll-start") || "top bottom"
@@ -255,134 +255,266 @@ function initGlobalParallax() {
 
 initGlobalParallax()
 
+/* Mouse Move Spotlight */
+// function initSpotlightEffect() {
+//   const trigger = document.querySelector('[data-spotlight="trigger"]');
+//   const target = document.querySelector('[data-spotlight="target"]');
+
+//   if (!trigger || !target) return;
+
+//   let isHovering = false;
+
+//   gsap.set(target, { xPercent: 0, pointerEvents: 'none' });
+
+//   const moveSpotlight = (e) => {
+//     if (!isHovering) return;
+
+//     gsap.to(target, {
+//       x: e.clientX,
+//       duration: 1,
+//       ease: 'expo.out'
+//     });
+//   };
+
+//   trigger.addEventListener('mouseenter', () => {
+//     isHovering = true;
+//     //gsap.to(target, { autoAlpha: 1, scale: 1, duration: 1, ease: 'expo.out' });
+//     document.addEventListener('mousemove', moveSpotlight);
+//   });
+
+//   trigger.addEventListener('mouseleave', () => {
+//     isHovering = false;
+//     //gsap.to(target, { autoAlpha: 0, scale: 0.8, duration: 1, ease: 'expo.in' });
+//     document.removeEventListener('mousemove', moveSpotlight);
+//   });
+// }
+
+// initSpotlightEffect();
+
+
+
 /* HOMEPAGE */
 if (page === "home") {
-/* Sticky services overview */
-function initStickyServices(root){
-  const wraps = Array.from((root || document).querySelectorAll("[data-sticky-service-wrap]"));
-  if(!wraps.length) return;
 
-  wraps.forEach(w => {
-    const visuals = Array.from(w.querySelectorAll("[data-sticky-service-visual-wrap]"));
-    const items = Array.from(w.querySelectorAll("[data-sticky-service-item]"));
-    const progressBar = w.querySelector("[data-sticky-service-progress]");
-    
-    if (visuals.length !== items.length) {
-      console.warn("[initStickyServices] visuals and items count mismatch:", { visuals: visuals.length, items: items.length, wrap: w });
-    }
-    
-    const count = Math.min(visuals.length, items.length);
-    if(count < 1) return;
+/* Product Reveal Animation */
+const productRevealConfig = {
+  duration: 1.5,
+  stagger: 0.1,
+  ease: 'expo.out'
+}
 
-    const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const DURATION = rm ? 0.01 : 0.75;
-    const EASE = "power4.inOut";
-    const SCROLL_AMOUNT = 0.9;
+function initScaleReveal() {
+  const products = document.querySelectorAll('[data-scale-reveal]')
 
-    const getTexts = el => Array.from(el.querySelectorAll("[data-sticky-service-text]"));
+  products.forEach(product => {
+    gsap.set(product, {
+      scale: 0,
+      transformOrigin: 'center center'
+    })
 
-    // --- INITIAL STATE ---
-    gsap.set(visuals, { autoAlpha: 0, clipPath: "inset(50% round 0.75em)" });
-    gsap.set(items, { autoAlpha: 0 });
-
-    let currentIndex = 0;
-
-    // --- Transition logic ---
-    function transition(fromIndex, toIndex){
-      if(fromIndex === toIndex) return;
-      const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
-
-      // Animate current visual closing and next one opening
-      tl.to(visuals[fromIndex], { 
-        clipPath: "inset(50% round 0.75em)",
-        autoAlpha: 0,
-        duration: DURATION,
-        ease: EASE
-      }, 0)
-      .to(visuals[toIndex], { 
-        clipPath: "inset(0% round 0.75em)",
-        autoAlpha: 1,
-        duration: DURATION,
-        ease: EASE
-      }, 0);
-
-      animateOut(items[fromIndex]);
-      animateIn(items[toIndex]);
-    }
-
-    // --- Fade out current text ---
-    function animateOut(itemEl){
-      const texts = getTexts(itemEl);
-      gsap.to(texts, {
-        autoAlpha: 0,
-        y: -30,
-        ease: "power4.out",
-        duration: 0.4,
-        onComplete: () => gsap.set(itemEl, { autoAlpha: 0 })
-      });
-    }
-
-    // --- Reveal next text ---
-    function animateIn(itemEl){
-      const texts = getTexts(itemEl);
-      gsap.set(itemEl, { autoAlpha: 1 });
-      gsap.fromTo(texts, {
-        autoAlpha: 0, 
-        y: 30
-      }, {
-        autoAlpha: 1,
-        y: 0,
-        ease: "power4.out",
-        duration: DURATION,
-        stagger: 0.1
-      });
-    }
-
-    const steps = Math.max(1, count - 1);
-
-    // --- Main ScrollTrigger ---
-    ScrollTrigger.create({
-      trigger: w,
-      start: "center center",
-      end: () => `+=${steps * 100}%`,
-      pin: true,
-      scrub: true,
-      invalidateOnRefresh: true,
-      onEnter: () => {
-        // Animate the FIRST visual and text when section enters
-        gsap.to(visuals[0], { 
-          clipPath: "inset(0% round 0.75em)",
-          autoAlpha: 1,
-          duration: 0.8,
-          ease: "power3.out"
-        });
-        gsap.to(items[0], { 
-          autoAlpha: 1,
-          duration: 0.8,
-          ease: "power3.out"
-        });
-      },
-      onUpdate: self => {
-        const p = Math.min(self.progress, SCROLL_AMOUNT) / SCROLL_AMOUNT;
-        let idx = Math.floor(p * steps + 1e-6);
-        idx = Math.max(0, Math.min(steps, idx));
-
-        // Update progress bar
-        if (progressBar) {
-          gsap.to(progressBar, { scaleX: p, ease: "none" });
-        }
-
-        // Handle transitions
-        if (idx !== currentIndex) {
-          transition(currentIndex, idx);
-          currentIndex = idx;
-        }
+    gsap.to(product, {
+      scale: 1,
+      duration: productRevealConfig.duration,
+      stagger: productRevealConfig.stagger,
+      ease: productRevealConfig.ease,
+      scrollTrigger: {
+        trigger: product,
+        start: 'top 80%',
+        //markers: true,
+        once: true
       }
+    })
+  })
+}
+
+initScaleReveal()
+
+/* Sticky services overview */
+// function initStickyServices(root){
+//   const wraps = Array.from((root || document).querySelectorAll("[data-sticky-service-wrap]"));
+//   if(!wraps.length) return;
+
+//   wraps.forEach(w => {
+//     const visuals = Array.from(w.querySelectorAll("[data-sticky-service-visual-wrap]"));
+//     const items = Array.from(w.querySelectorAll("[data-sticky-service-item]"));
+//     const progressBar = w.querySelector("[data-sticky-service-progress]");
+    
+//     if (visuals.length !== items.length) {
+//       console.warn("[initStickyServices] visuals and items count mismatch:", { visuals: visuals.length, items: items.length, wrap: w });
+//     }
+    
+//     const count = Math.min(visuals.length, items.length);
+//     if(count < 1) return;
+
+//     const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+//     const DURATION = rm ? 0.01 : 0.75;
+//     const EASE = "power4.inOut";
+//     const SCROLL_AMOUNT = 0.9;
+
+//     const getTexts = el => Array.from(el.querySelectorAll("[data-sticky-service-text]"));
+
+//     // --- INITIAL STATE ---
+//     gsap.set(visuals, { autoAlpha: 0, clipPath: "inset(50% round 0.75em)" });
+//     gsap.set(items, { autoAlpha: 0 });
+
+//     let currentIndex = 0;
+
+//     // --- Transition logic ---
+//     function transition(fromIndex, toIndex){
+//       if(fromIndex === toIndex) return;
+//       const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
+
+//       // Animate current visual closing and next one opening
+//       tl.to(visuals[fromIndex], { 
+//         clipPath: "inset(50% round 0.75em)",
+//         autoAlpha: 0,
+//         duration: DURATION,
+//         ease: EASE
+//       }, 0)
+//       .to(visuals[toIndex], { 
+//         clipPath: "inset(0% round 0.75em)",
+//         autoAlpha: 1,
+//         duration: DURATION,
+//         ease: EASE
+//       }, 0);
+
+//       animateOut(items[fromIndex]);
+//       animateIn(items[toIndex]);
+//     }
+
+//     // --- Fade out current text ---
+//     function animateOut(itemEl){
+//       const texts = getTexts(itemEl);
+//       gsap.to(texts, {
+//         autoAlpha: 0,
+//         y: -30,
+//         ease: "power4.out",
+//         duration: 0.4,
+//         onComplete: () => gsap.set(itemEl, { autoAlpha: 0 })
+//       });
+//     }
+
+//     // --- Reveal next text ---
+//     function animateIn(itemEl){
+//       const texts = getTexts(itemEl);
+//       gsap.set(itemEl, { autoAlpha: 1 });
+//       gsap.fromTo(texts, {
+//         autoAlpha: 0, 
+//         y: 30
+//       }, {
+//         autoAlpha: 1,
+//         y: 0,
+//         ease: "power4.out",
+//         duration: DURATION,
+//         stagger: 0.1
+//       });
+//     }
+
+//     const steps = Math.max(1, count - 1);
+
+//     // --- Main ScrollTrigger ---
+//     ScrollTrigger.create({
+//       trigger: w,
+//       start: "center center",
+//       end: () => `+=${steps * 100}%`,
+//       pin: true,
+//       scrub: true,
+//       invalidateOnRefresh: true,
+//       onEnter: () => {
+//         // Animate the FIRST visual and text when section enters
+//         gsap.to(visuals[0], { 
+//           clipPath: "inset(0% round 0.75em)",
+//           autoAlpha: 1,
+//           duration: 0.8,
+//           ease: "power3.out"
+//         });
+//         gsap.to(items[0], { 
+//           autoAlpha: 1,
+//           duration: 0.8,
+//           ease: "power3.out"
+//         });
+//       },
+//       onUpdate: self => {
+//         const p = Math.min(self.progress, SCROLL_AMOUNT) / SCROLL_AMOUNT;
+//         let idx = Math.floor(p * steps + 1e-6);
+//         idx = Math.max(0, Math.min(steps, idx));
+
+//         // Update progress bar
+//         if (progressBar) {
+//           gsap.to(progressBar, { scaleX: p, ease: "none" });
+//         }
+
+//         // Handle transitions
+//         if (idx !== currentIndex) {
+//           transition(currentIndex, idx);
+//           currentIndex = idx;
+//         }
+//       }
+//     });
+//   });
+// }
+
+//   initStickyServices();
+
+/* Magnetic Effect */
+function initMagneticEffect() {
+  const magnets = document.querySelectorAll('[data-magnetic-strength]');
+  if (window.innerWidth <= 991) return;
+  
+  // Helper to kill tweens and reset an element.
+  const resetEl = (el, immediate) => {
+    if (!el) return;
+    gsap.killTweensOf(el);
+    (immediate ? gsap.set : gsap.to)(el, {
+      x: "0em",
+      y: "0em",
+      rotate: "0deg",
+      clearProps: "all",
+      ...(!immediate && { ease: "elastic.out(1, 0.3)", duration: 1.6 })
     });
+  };
+
+  const resetOnEnter = e => {
+    const m = e.currentTarget;
+    resetEl(m, true);
+    resetEl(m.querySelector('[data-magnetic-inner-target]'), true);
+  };
+
+  const moveMagnet = e => {
+    const m = e.currentTarget,
+      b = m.getBoundingClientRect(),
+      strength = parseFloat(m.getAttribute('data-magnetic-strength')) || 25,
+      inner = m.querySelector('[data-magnetic-inner-target]'),
+      innerStrength = parseFloat(m.getAttribute('data-magnetic-strength-inner')) || strength,
+      offsetX = ((e.clientX - b.left) / m.offsetWidth - 0.5) * (strength / 16),
+      offsetY = ((e.clientY - b.top) / m.offsetHeight - 0.5) * (strength / 16);
+    
+    gsap.to(m, { x: offsetX + "em", y: offsetY + "em", rotate: "0.001deg", ease: "power4.out", duration: 1.6 });
+    
+    if (inner) {
+      const innerOffsetX = ((e.clientX - b.left) / m.offsetWidth - 0.5) * (innerStrength / 16),
+        innerOffsetY = ((e.clientY - b.top) / m.offsetHeight - 0.5) * (innerStrength / 16);
+      gsap.to(inner, { x: innerOffsetX + "em", y: innerOffsetY + "em", rotate: "0.001deg", ease: "power4.out", duration: 2 });
+    }
+  };
+
+  const resetMagnet = e => {
+    const m = e.currentTarget,
+      inner = m.querySelector('[data-magnetic-inner-target]');
+    gsap.to(m, { x: "0em", y: "0em", ease: "elastic.out(1, 0.3)", duration: 1.6, clearProps: "all" });
+    if (inner) {
+      gsap.to(inner, { x: "0em", y: "0em", ease: "elastic.out(1, 0.3)", duration: 2, clearProps: "all" });
+    }
+  };
+
+  magnets.forEach(m => {
+    m.addEventListener('mouseenter', resetOnEnter);
+    m.addEventListener('mousemove', moveMagnet);
+    m.addEventListener('mouseleave', resetMagnet);
   });
 }
 
-  //initStickyServices();
+initMagneticEffect();
 
 
 
