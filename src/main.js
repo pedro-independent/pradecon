@@ -1,9 +1,119 @@
 /* CONFIG */
 const page = document.body.dataset.page;
 
-gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, SplitText);
+gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, SplitText, CustomEase);
 
 /* GLOBAL CODE */
+
+/* Loading Animation*/
+CustomEase.create("slideshow-wipe", "0.625, 0.05, 0, 1");
+function initCrispLoadingAnimation() {
+
+  const container = document.querySelector(".crisp-header");
+  const heading = container.querySelectorAll('[data-loader="text"]');
+  const revealImages = container.querySelectorAll(".crisp-loader__group > *");
+  const isScaleUp = container.querySelectorAll(".crisp-loader__media");
+  const isScaleDown = container.querySelectorAll(".crisp-loader__media .is--scale-down");
+  const isRadius = container.querySelectorAll(".crisp-loader__media.is--scaling.is--radius");
+  const smallElements = container.querySelectorAll(".crisp-header__top, .crisp-header__p");
+  const sliderNav = document.querySelector(".navbar");
+  
+  /* GSAP Timeline */
+  const tl = gsap.timeline({
+    defaults: {
+      ease: "expo.inOut",
+    },
+    onStart: () => {
+      container.classList.remove('is--hidden');
+    }
+  });
+  
+  /* GSAP SplitText */
+  let split;
+  if (heading.length) {
+    split = new SplitText(heading, {
+      type: "words",
+      mask: "words"
+    });
+
+    gsap.set(split.words, {
+      yPercent: 110,
+    });
+  }
+  
+  /* Start of Timeline */
+  if (revealImages.length) {
+    tl.fromTo(revealImages, {
+      xPercent: 500
+    }, {
+      xPercent: -500,
+      duration: 2.5,
+      stagger: 0.05
+    });
+  }
+  
+  if (isScaleDown.length) {
+    tl.to(isScaleDown, {
+      scale: 0.5,
+      duration: 2,
+      stagger: {
+        each: 0.05,
+        from: "edges",
+        ease: "none"
+      },
+      onComplete: () => {
+        if (isRadius) {
+          isRadius.forEach(el => el.classList.remove('is--radius'));
+        }
+      }
+    }, "-=0.1");
+  }
+  
+  if (isScaleUp.length) {
+    tl.fromTo(isScaleUp, {
+      width: "10em",
+      height: "10em"
+    }, {
+      width: "100vw",
+      height: "100dvh",
+      duration: 2
+    }, "< 0.5");
+    tl.addLabel("scaleDone");
+  }
+
+  if (sliderNav) {
+    tl.from(sliderNav, {
+      yPercent: -100,
+      ease: "expo.out",
+      duration: 1
+    }, "scaleDone-=0.7");
+  }
+
+  if (split && split.words.length) {
+    tl.to(split.words, {
+      yPercent: 0,
+      stagger: 0.04,
+      ease: "expo.out",
+      duration: 1
+    }, "scaleDone-=0.5");
+  }
+  
+  if (smallElements.length) {
+    tl.from(smallElements, {
+      opacity: 0,
+      ease: "power1.inOut",
+      duration: 0.2
+    }, "< 0.15");
+  }
+  
+  tl.call(function () {
+    container.classList.remove('is--loading');
+  }, null, "+=0.45");
+}
+
+document.fonts.ready.then(() => {
+  initCrispLoadingAnimation();
+});
 
 /* Text Reveals */
 const splitConfig = {
@@ -330,131 +440,118 @@ function initScaleReveal() {
 initScaleReveal()
 
 /* Sticky services overview */
-// function initStickyServices(root){
-//   const wraps = Array.from((root || document).querySelectorAll("[data-sticky-service-wrap]"));
-//   if(!wraps.length) return;
+function initStickyFeatures(root){
+  const wraps = Array.from((root || document).querySelectorAll("[data-sticky-feature-wrap]"));
+  if(!wraps.length) return;
 
-//   wraps.forEach(w => {
-//     const visuals = Array.from(w.querySelectorAll("[data-sticky-service-visual-wrap]"));
-//     const items = Array.from(w.querySelectorAll("[data-sticky-service-item]"));
-//     const progressBar = w.querySelector("[data-sticky-service-progress]");
+  wraps.forEach(w => {
+    const visualWraps = Array.from(w.querySelectorAll("[data-sticky-feature-visual-wrap]"));
+    const items = Array.from(w.querySelectorAll("[data-sticky-feature-item]"));
+    const progressBar = w.querySelector("[data-sticky-feature-progress]");
     
-//     if (visuals.length !== items.length) {
-//       console.warn("[initStickyServices] visuals and items count mismatch:", { visuals: visuals.length, items: items.length, wrap: w });
-//     }
+    if (visualWraps.length !== items.length) {
+      console.warn("[initStickyFeatures] visualWraps and items count do not match:", {
+        visualWraps: visualWraps.length,
+        items: items.length,
+        wrap: w
+      });
+    }
     
-//     const count = Math.min(visuals.length, items.length);
-//     if(count < 1) return;
+    const count = Math.min(visualWraps.length, items.length);
+    if(count < 1) return;
 
-//     const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-//     const DURATION = rm ? 0.01 : 0.75;
-//     const EASE = "power4.inOut";
-//     const SCROLL_AMOUNT = 0.9;
+    const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const DURATION = rm ? 0.01 : 0.75; // If user prefers reduced motion, reduce duration
+    const EASE = "power4.inOut";
+    const SCROLL_AMOUNT = 0.9; // % of scroll used for step transitions
 
-//     const getTexts = el => Array.from(el.querySelectorAll("[data-sticky-service-text]"));
+    const getTexts = el => Array.from(el.querySelectorAll("[data-sticky-feature-text]"));
 
-//     // --- INITIAL STATE ---
-//     gsap.set(visuals, { autoAlpha: 0, clipPath: "inset(50% round 0.75em)" });
-//     gsap.set(items, { autoAlpha: 0 });
+    if(visualWraps[0]) gsap.set(visualWraps[0], { clipPath: "inset(0% round 0.75em)" });
+    gsap.set(items[0], { autoAlpha: 1 });
 
-//     let currentIndex = 0;
+    let currentIndex = 0;
 
-//     // --- Transition logic ---
-//     function transition(fromIndex, toIndex){
-//       if(fromIndex === toIndex) return;
-//       const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
+    // Transition Function
+    function transition(fromIndex, toIndex){
+      if(fromIndex === toIndex) return;
+      const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
+      
+      if(fromIndex < toIndex){
+        tl.to(visualWraps[toIndex], { 
+          clipPath: "inset(0% round 0.75em)",
+          duration: DURATION,
+          ease: EASE
+        }, 0);
+      } else {
+        tl.to(visualWraps[fromIndex], { 
+          clipPath: "inset(50% round 0.75em)",
+          duration: DURATION,
+          ease: EASE
+        }, 0);
+      }
+      animateOut(items[fromIndex]);
+      animateIn(items[toIndex]);
+    }
 
-//       // Animate current visual closing and next one opening
-//       tl.to(visuals[fromIndex], { 
-//         clipPath: "inset(50% round 0.75em)",
-//         autoAlpha: 0,
-//         duration: DURATION,
-//         ease: EASE
-//       }, 0)
-//       .to(visuals[toIndex], { 
-//         clipPath: "inset(0% round 0.75em)",
-//         autoAlpha: 1,
-//         duration: DURATION,
-//         ease: EASE
-//       }, 0);
+    // Fade out text content items
+    function animateOut(itemEl){
+      const texts = getTexts(itemEl);
+      gsap.to(texts, {
+        autoAlpha: 0,
+        y: -30,
+        ease: "power4.out",
+        duration: 0.4,
+        onComplete: () => gsap.set(itemEl, { autoAlpha: 0 })
+      });
+    }
 
-//       animateOut(items[fromIndex]);
-//       animateIn(items[toIndex]);
-//     }
+    // Reveal incoming text content items
+    function animateIn(itemEl){
+      const texts = getTexts(itemEl);
+      gsap.set(itemEl, { autoAlpha: 1 });
+      gsap.fromTo(texts, {
+        autoAlpha: 0, 
+        y: 30
+      }, {
+        autoAlpha: 1,
+        y: 0,
+        ease: "power4.out",
+        duration: DURATION,
+        stagger: 0.1
+      });
+    }
 
-//     // --- Fade out current text ---
-//     function animateOut(itemEl){
-//       const texts = getTexts(itemEl);
-//       gsap.to(texts, {
-//         autoAlpha: 0,
-//         y: -30,
-//         ease: "power4.out",
-//         duration: 0.4,
-//         onComplete: () => gsap.set(itemEl, { autoAlpha: 0 })
-//       });
-//     }
+    const steps = Math.max(1, count - 1);
 
-//     // --- Reveal next text ---
-//     function animateIn(itemEl){
-//       const texts = getTexts(itemEl);
-//       gsap.set(itemEl, { autoAlpha: 1 });
-//       gsap.fromTo(texts, {
-//         autoAlpha: 0, 
-//         y: 30
-//       }, {
-//         autoAlpha: 1,
-//         y: 0,
-//         ease: "power4.out",
-//         duration: DURATION,
-//         stagger: 0.1
-//       });
-//     }
+    ScrollTrigger.create({
+      trigger: w,
+      start: "center center",
+      end: () => `+=${steps * 100}%`,
+      pin: true,
+      scrub: true,
+      invalidateOnRefresh: true,
+      onUpdate: self => {
+        const p = Math.min(self.progress, SCROLL_AMOUNT) / SCROLL_AMOUNT;
+        let idx = Math.floor(p * steps + 1e-6);
+        idx = Math.max(0, Math.min(steps, idx));
+        
+        gsap.to(progressBar,{
+          scaleX: p,
+          ease: "none"
+        })
+        
+        if (idx !== currentIndex) {
+          transition(currentIndex, idx);
+          currentIndex = idx;
+        }
+      }
+    });
+  });
+}
 
-//     const steps = Math.max(1, count - 1);
+initStickyFeatures();
 
-//     // --- Main ScrollTrigger ---
-//     ScrollTrigger.create({
-//       trigger: w,
-//       start: "center center",
-//       end: () => `+=${steps * 100}%`,
-//       pin: true,
-//       scrub: true,
-//       invalidateOnRefresh: true,
-//       onEnter: () => {
-//         // Animate the FIRST visual and text when section enters
-//         gsap.to(visuals[0], { 
-//           clipPath: "inset(0% round 0.75em)",
-//           autoAlpha: 1,
-//           duration: 0.8,
-//           ease: "power3.out"
-//         });
-//         gsap.to(items[0], { 
-//           autoAlpha: 1,
-//           duration: 0.8,
-//           ease: "power3.out"
-//         });
-//       },
-//       onUpdate: self => {
-//         const p = Math.min(self.progress, SCROLL_AMOUNT) / SCROLL_AMOUNT;
-//         let idx = Math.floor(p * steps + 1e-6);
-//         idx = Math.max(0, Math.min(steps, idx));
-
-//         // Update progress bar
-//         if (progressBar) {
-//           gsap.to(progressBar, { scaleX: p, ease: "none" });
-//         }
-
-//         // Handle transitions
-//         if (idx !== currentIndex) {
-//           transition(currentIndex, idx);
-//           currentIndex = idx;
-//         }
-//       }
-//     });
-//   });
-// }
-
-//   initStickyServices();
 
 /* Magnetic Effect */
 function initMagneticEffect() {
