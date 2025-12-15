@@ -6,6 +6,7 @@ gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, SplitText, CustomEase);
 /* GLOBAL CODE */
 
 /* Loading Animation*/
+if (page === "home") {
 CustomEase.create("slideshow-wipe", "0.625, 0.05, 0, 1");
 function initCrispLoadingAnimation() {
 
@@ -114,6 +115,8 @@ function initCrispLoadingAnimation() {
 document.fonts.ready.then(() => {
   initCrispLoadingAnimation();
 });
+}
+
 
 /* Text Reveals */
 const splitConfig = {
@@ -351,6 +354,7 @@ function initGlobalParallax() {
                   trigger,
                   start: scrollStart,
                   end: scrollEnd,
+                  markers: true,
                   scrub,
                 },
               }
@@ -364,43 +368,6 @@ function initGlobalParallax() {
 }
 
 initGlobalParallax()
-
-/* Mouse Move Spotlight */
-// function initSpotlightEffect() {
-//   const trigger = document.querySelector('[data-spotlight="trigger"]');
-//   const target = document.querySelector('[data-spotlight="target"]');
-
-//   if (!trigger || !target) return;
-
-//   let isHovering = false;
-
-//   gsap.set(target, { xPercent: 0, pointerEvents: 'none' });
-
-//   const moveSpotlight = (e) => {
-//     if (!isHovering) return;
-
-//     gsap.to(target, {
-//       x: e.clientX,
-//       duration: 1,
-//       ease: 'expo.out'
-//     });
-//   };
-
-//   trigger.addEventListener('mouseenter', () => {
-//     isHovering = true;
-//     //gsap.to(target, { autoAlpha: 1, scale: 1, duration: 1, ease: 'expo.out' });
-//     document.addEventListener('mousemove', moveSpotlight);
-//   });
-
-//   trigger.addEventListener('mouseleave', () => {
-//     isHovering = false;
-//     //gsap.to(target, { autoAlpha: 0, scale: 0.8, duration: 1, ease: 'expo.in' });
-//     document.removeEventListener('mousemove', moveSpotlight);
-//   });
-// }
-
-// initSpotlightEffect();
-
 
 
 /* HOMEPAGE */
@@ -554,65 +521,151 @@ initStickyFeatures();
 
 
 /* Magnetic Effect */
-function initMagneticEffect() {
-  const magnets = document.querySelectorAll('[data-magnetic-strength]');
-  if (window.innerWidth <= 991) return;
+// function initMagneticEffect() {
+//   const magnets = document.querySelectorAll('[data-magnetic-strength]');
+//   if (window.innerWidth <= 991) return;
   
-  // Helper to kill tweens and reset an element.
-  const resetEl = (el, immediate) => {
-    if (!el) return;
-    gsap.killTweensOf(el);
-    (immediate ? gsap.set : gsap.to)(el, {
-      x: "0em",
-      y: "0em",
-      rotate: "0deg",
-      clearProps: "all",
-      ...(!immediate && { ease: "elastic.out(1, 0.3)", duration: 1.6 })
+//   // Helper to kill tweens and reset an element.
+//   const resetEl = (el, immediate) => {
+//     if (!el) return;
+//     gsap.killTweensOf(el);
+//     (immediate ? gsap.set : gsap.to)(el, {
+//       x: "0em",
+//       y: "0em",
+//       rotate: "0deg",
+//       clearProps: "all",
+//       ...(!immediate && { ease: "elastic.out(1, 0.3)", duration: 1.6 })
+//     });
+//   };
+
+//   const resetOnEnter = e => {
+//     const m = e.currentTarget;
+//     resetEl(m, true);
+//     resetEl(m.querySelector('[data-magnetic-inner-target]'), true);
+//   };
+
+//   const moveMagnet = e => {
+//     const m = e.currentTarget,
+//       b = m.getBoundingClientRect(),
+//       strength = parseFloat(m.getAttribute('data-magnetic-strength')) || 25,
+//       inner = m.querySelector('[data-magnetic-inner-target]'),
+//       innerStrength = parseFloat(m.getAttribute('data-magnetic-strength-inner')) || strength,
+//       offsetX = ((e.clientX - b.left) / m.offsetWidth - 0.5) * (strength / 16),
+//       offsetY = ((e.clientY - b.top) / m.offsetHeight - 0.5) * (strength / 16);
+    
+//     gsap.to(m, { x: offsetX + "em", y: offsetY + "em", rotate: "0.001deg", ease: "power4.out", duration: 1.6 });
+    
+//     if (inner) {
+//       const innerOffsetX = ((e.clientX - b.left) / m.offsetWidth - 0.5) * (innerStrength / 16),
+//         innerOffsetY = ((e.clientY - b.top) / m.offsetHeight - 0.5) * (innerStrength / 16);
+//       gsap.to(inner, { x: innerOffsetX + "em", y: innerOffsetY + "em", rotate: "0.001deg", ease: "power4.out", duration: 2 });
+//     }
+//   };
+
+//   const resetMagnet = e => {
+//     const m = e.currentTarget,
+//       inner = m.querySelector('[data-magnetic-inner-target]');
+//     gsap.to(m, { x: "0em", y: "0em", ease: "elastic.out(1, 0.3)", duration: 1.6, clearProps: "all" });
+//     if (inner) {
+//       gsap.to(inner, { x: "0em", y: "0em", ease: "elastic.out(1, 0.3)", duration: 2, clearProps: "all" });
+//     }
+//   };
+
+//   magnets.forEach(m => {
+//     m.addEventListener('mouseenter', resetOnEnter);
+//     m.addEventListener('mousemove', moveMagnet);
+//     m.addEventListener('mouseleave', resetMagnet);
+//   });
+// }
+
+// initMagneticEffect();
+
+/* Impact List Scroll */
+function initImpactScroll() {
+  const section = document.querySelector('.section_impact');
+  const list = document.querySelector('.impact-list');
+  const items = document.querySelectorAll('.impact-item');
+
+  // width we need to scroll horizontally
+  const totalWidth = list.scrollWidth - window.innerWidth;
+
+  // timeline controlling the horizontal scroll
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: section,
+      start: "top top",
+      end: () => "+=" + totalWidth,
+      scrub: true,
+      pin: true,
+    }
+  });
+
+  // move the LIST horizontally
+  tl.to(list, {
+    x: -totalWidth,
+    ease: "none"
+  });
+
+  items.forEach((item) => {
+    gsap.from(item, {
+      opacity: 0,
+      scrollTrigger: {
+        trigger: item,
+        start: "left 85%",
+        end: "left 30%",
+        scrub: true,
+        //markers: true,
+        containerAnimation: tl,
+        toggleActions: "play none none none"
+      }
     });
-  };
-
-  const resetOnEnter = e => {
-    const m = e.currentTarget;
-    resetEl(m, true);
-    resetEl(m.querySelector('[data-magnetic-inner-target]'), true);
-  };
-
-  const moveMagnet = e => {
-    const m = e.currentTarget,
-      b = m.getBoundingClientRect(),
-      strength = parseFloat(m.getAttribute('data-magnetic-strength')) || 25,
-      inner = m.querySelector('[data-magnetic-inner-target]'),
-      innerStrength = parseFloat(m.getAttribute('data-magnetic-strength-inner')) || strength,
-      offsetX = ((e.clientX - b.left) / m.offsetWidth - 0.5) * (strength / 16),
-      offsetY = ((e.clientY - b.top) / m.offsetHeight - 0.5) * (strength / 16);
-    
-    gsap.to(m, { x: offsetX + "em", y: offsetY + "em", rotate: "0.001deg", ease: "power4.out", duration: 1.6 });
-    
-    if (inner) {
-      const innerOffsetX = ((e.clientX - b.left) / m.offsetWidth - 0.5) * (innerStrength / 16),
-        innerOffsetY = ((e.clientY - b.top) / m.offsetHeight - 0.5) * (innerStrength / 16);
-      gsap.to(inner, { x: innerOffsetX + "em", y: innerOffsetY + "em", rotate: "0.001deg", ease: "power4.out", duration: 2 });
-    }
-  };
-
-  const resetMagnet = e => {
-    const m = e.currentTarget,
-      inner = m.querySelector('[data-magnetic-inner-target]');
-    gsap.to(m, { x: "0em", y: "0em", ease: "elastic.out(1, 0.3)", duration: 1.6, clearProps: "all" });
-    if (inner) {
-      gsap.to(inner, { x: "0em", y: "0em", ease: "elastic.out(1, 0.3)", duration: 2, clearProps: "all" });
-    }
-  };
-
-  magnets.forEach(m => {
-    m.addEventListener('mouseenter', resetOnEnter);
-    m.addEventListener('mousemove', moveMagnet);
-    m.addEventListener('mouseleave', resetMagnet);
   });
 }
 
-initMagneticEffect();
+initImpactScroll();
 
 
+}
+
+/* ABOUT */
+if (page === "about") {
+
+/* Highlight Text on Scroll */  
+function initHighlightText(){
+
+  let splitHeadingTargets = document.querySelectorAll("[data-highlight-text]")
+  splitHeadingTargets.forEach((heading) => {
+    
+    const scrollStart = heading.getAttribute("data-highlight-scroll-start") || "top 90%"
+    const scrollEnd = heading.getAttribute("data-highlight-scroll-end") || "center 40%"
+    const fadedValue = heading.getAttribute("data-highlight-fade") || 0.2
+    const staggerValue =  heading.getAttribute("data-highlight-stagger") || 0.1
+    
+    new SplitText(heading, {
+      type: "words, chars",
+      autoSplit: true,
+      onSplit(self) {
+        let ctx = gsap.context(() => {
+          let tl = gsap.timeline({
+            scrollTrigger: {
+              scrub: true,
+              trigger: heading, 
+              start: scrollStart,
+              end: scrollEnd,
+            }
+          })
+          tl.from(self.chars,{
+            autoAlpha: fadedValue,
+            stagger: staggerValue,
+            ease: "linear"
+          })
+        });
+        return ctx;
+      }
+    });    
+  });
+}
+
+initHighlightText();
 
 }
