@@ -112,9 +112,10 @@ function initCrispLoadingAnimation() {
   }, null, "+=0.45");
 }
 
-document.fonts.ready.then(() => {
+//document.fonts.ready.then(() => {
   initCrispLoadingAnimation();
-});
+  //ScrollTrigger.refresh()
+//});
 }
 
 
@@ -517,7 +518,7 @@ function initStickyFeatures(root){
   });
 }
 
-initStickyFeatures();
+  initStickyFeatures();
 
 
 /* Magnetic Effect */
