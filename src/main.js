@@ -518,7 +518,7 @@ function initStickyFeatures(root){
   });
 }
 
-  initStickyFeatures();
+  //initStickyFeatures();
 
 
 /* Magnetic Effect */
