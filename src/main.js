@@ -1,14 +1,362 @@
+// -----------------------------------------
+// OSMO PAGE TRANSITION BOILERPLATE
+// -----------------------------------------
+
+
+gsap.registerPlugin(CustomEase, ScrollTrigger, ScrambleTextPlugin, SplitText);
+
+history.scrollRestoration = "manual";
+
+let lenis = null;
+let nextPage = document;
+let onceFunctionsInitialized = false;
+
+const hasLenis = typeof window.Lenis !== "undefined";
+const hasScrollTrigger = typeof window.ScrollTrigger !== "undefined";
+
+const rmMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+let reducedMotion = rmMQ.matches;
+rmMQ.addEventListener?.("change", e => (reducedMotion = e.matches));
+rmMQ.addListener?.(e => (reducedMotion = e.matches)); 
+
+const has = (s) => !!nextPage.querySelector(s);
+
+let staggerDefault = 0.05;
+let durationDefault = 0.6;
+
+CustomEase.create("osmo", "0.625, 0.05, 0, 1");
+gsap.defaults({ ease: "osmo", duration: durationDefault });
+
+
+// -----------------------------------------
+// FUNCTION REGISTRY
+// -----------------------------------------
+
+function initOnceFunctions() {
+  initLenis();
+  if (onceFunctionsInitialized) return;
+  onceFunctionsInitialized = true;
+  
+  // Runs once on first load
+  // if (has('[data-something]')) initSomething();
+}
+
+function initBeforeEnterFunctions(next) {
+  nextPage = next || document;
+  
+  // Runs before the enter animation
+  // if (has('[data-something]')) initSomething();
+  
+
+}
+
+function initAfterEnterFunctions(next) {
+  nextPage = next || document;
+
+  // Runs after enter animation completes
+  if (has('[data-split="heading"]')) initMaskTextScrollReveal();
+  //if (has('[data-sticky-feature-wrap]')) initStickyFeatures();
+  if (has('[data-scale-reveal]')) initScaleReveal();
+  if (has('[data-parallax="trigger"]')) initGlobalParallax();
+  if (has('[data-highlight-text]')) initHighlightText();
+  if (has('[data-scramble="scroll"]')) initScrambleOnScrollLoop();
+  if (has('.dot')) initBlinkOnScrollLoop();
+  if (has('#scroll-video')) initVideoScrub();
+  
+  
+
+  if(hasLenis){
+    lenis.resize();
+  }
+  
+  if (hasScrollTrigger) {
+    ScrollTrigger.refresh();
+  }
+}
+
+
+
+// -----------------------------------------
+// PAGE TRANSITIONS
+// -----------------------------------------
+
+function runPageOnceAnimation(next) {
+  const tl = gsap.timeline();
+
+  tl.call(() => {
+    resetPage(next);
+  }, null, 0);
+
+  return tl;
+}
+
+function runPageLeaveAnimation(current, next) {
+  const transitionWrap = document.querySelector("[data-transition-wrap]");
+  const transitionDark = transitionWrap.querySelector("[data-transition-dark]");
+
+  const tl = gsap.timeline({
+    onComplete: () => {
+      current.remove(); 
+    }
+  })
+  
+  //CustomEase.create("parallax", "0.7, 0.05, 0.13, 1");
+  CustomEase.create("parallax", "0.625, 0.05, 0, 1");
+  
+  if (reducedMotion) {
+    // Immediate swap behavior if user prefers reduced motion
+    return tl.set(current, { autoAlpha: 0 });
+  }
+  
+  tl.set(transitionWrap, {
+    zIndex: 2
+  });
+  
+  tl.fromTo(transitionDark, {
+    autoAlpha: 0
+  },{
+    autoAlpha: 0.7,
+    duration: 1.2,
+    ease: "parallax"
+  }, 0);
+  
+  tl.fromTo(current,{
+    y: "0vh"
+  },{
+    y: "-25vh",
+    duration: 1.2,
+    ease: "parallax",
+  }, 0);
+  
+  tl.set(transitionDark, {
+    autoAlpha: 0,
+  });
+
+  return tl;
+}
+
+function runPageEnterAnimation(next){
+  const tl = gsap.timeline();
+  
+  if (reducedMotion) {
+    // Immediate swap behavior if user prefers reduced motion
+    tl.set(next, { autoAlpha: 1 });
+    tl.add("pageReady")
+    tl.call(resetPage, [next], "pageReady");
+    return new Promise(resolve => tl.call(resolve, null, "pageReady"));
+  }
+  
+  tl.add("startEnter", 0);
+  
+  tl.set(next, {
+    zIndex: 3
+  });
+  
+  tl.fromTo(next, {
+    y: "100vh"
+  }, {
+    y: "0vh",
+    duration: 1.2,
+    clearProps: "all",
+    ease: "parallax"
+  }, "startEnter");
+
+  tl.add("pageReady");
+  tl.call(resetPage, [next], "pageReady");
+
+  return new Promise(resolve => {
+    tl.call(resolve, null, "pageReady");
+  });
+}
+
+
+// -----------------------------------------
+// BARBA HOOKS + INIT
+// -----------------------------------------
+
+barba.hooks.beforeEnter(data => {
+  // Position new container on top
+  gsap.set(data.next.container, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+  });
+  
+  if (lenis && typeof lenis.stop === "function") {
+    lenis.stop();
+  }
+  
+  initBeforeEnterFunctions(data.next.container);
+  applyThemeFrom(data.next.container);
+});
+
+barba.hooks.afterLeave(() => {
+  if(hasScrollTrigger){
+    ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+  }
+});
+
+barba.hooks.enter(data => {
+  initBarbaNavUpdate(data);
+})
+
+barba.hooks.afterEnter(data => {
+  // Run page functions
+  initAfterEnterFunctions(data.next.container);
+  
+  // Settle
+  if(hasLenis){
+    lenis.resize();
+    lenis.start();    
+  }
+  
+  if(hasScrollTrigger){
+    ScrollTrigger.refresh(); 
+  }
+});
+
+barba.init({
+  debug: true, // Set to 'false' in production
+  timeout: 7000,
+  preventRunning: true,
+  transitions: [
+    {
+      name: "default",
+      sync: true,
+      
+      // First load
+      async once(data) {
+        initOnceFunctions();
+
+        return runPageOnceAnimation(data.next.container);
+      },
+
+      // Current page leaves
+      async leave(data) {
+        return runPageLeaveAnimation(data.current.container, data.next.container);
+      },
+
+      // New page enters
+      async enter(data) {
+        return runPageEnterAnimation(data.next.container);
+      }
+    }
+  ],
+});
+
+
+
+// -----------------------------------------
+// GENERIC + HELPERS
+// -----------------------------------------
+
+const themeConfig = {
+  light: {
+    nav: "dark",
+    transition: "light"
+  },
+  dark: {
+    nav: "light",
+    transition: "dark"
+  }
+};
+
+function applyThemeFrom(container) {
+  const pageTheme = container?.dataset?.pageTheme || "light";
+  const config = themeConfig[pageTheme] || themeConfig.light;
+  
+  document.body.dataset.pageTheme = pageTheme;
+  const transitionEl = document.querySelector('[data-theme-transition]');
+  if (transitionEl) {
+    transitionEl.dataset.themeTransition = config.transition;
+  }
+
+  const nav = document.querySelector('[data-theme-nav]');
+  if (nav) {
+    nav.dataset.themeNav = config.nav;
+  }
+}
+
+function initLenis() {
+  if (lenis) return; // already created
+  if (!hasLenis) return;
+
+  lenis = new Lenis({
+    lerp: 0.125,
+    wheelMultiplier: 1.25,
+    smoothWheel: true,
+  });
+
+  if (hasScrollTrigger) {
+    lenis.on("scroll", ScrollTrigger.update);
+  }
+
+  gsap.ticker.add((time) => {
+    lenis.raf(time * 1000);
+  });
+
+  gsap.ticker.lagSmoothing(0);
+}
+
+function resetPage(container){
+  window.scrollTo(0, 0);
+  gsap.set(container, { clearProps: "position,top,left,right" });
+  
+  if(hasLenis){
+    lenis.resize();
+    lenis.start();    
+  }
+}
+
+function debounceOnWidthChange(fn, ms) {
+  let last = innerWidth,
+    timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (innerWidth !== last) {
+        last = innerWidth;
+        fn.apply(this, args);
+      }
+    }, ms);
+  };
+}
+
+function initBarbaNavUpdate(data) {
+  var tpl = document.createElement('template');
+  tpl.innerHTML = data.next.html.trim();
+  var nextNodes = tpl.content.querySelectorAll('[data-barba-update]');
+  var currentNodes = document.querySelectorAll('nav [data-barba-update]');
+
+  currentNodes.forEach(function (curr, index) {
+    var next = nextNodes[index];
+    if (!next) return;
+
+    // Aria-current sync
+    var newStatus = next.getAttribute('aria-current');
+    if (newStatus !== null) {
+      curr.setAttribute('aria-current', newStatus);
+    } else {
+      curr.removeAttribute('aria-current');
+    }
+
+    // Class list sync
+    var newClassList = next.getAttribute('class') || '';
+    curr.setAttribute('class', newClassList);
+  });
+}
+
+
+
+// -----------------------------------------
+// YOUR FUNCTIONS GO BELOW HERE
+// -----------------------------------------
+
 //import './styles/style.css';
 
-/* CONFIG */
-const page = document.body.dataset.page;
-
-gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, SplitText, CustomEase);
-
-/* GLOBAL CODE */
 
 /* Loading Animation*/
-if (page === "home") {
 CustomEase.create("slideshow-wipe", "0.625, 0.05, 0, 1");
 function initCrispLoadingAnimation() {
 
@@ -21,7 +369,7 @@ function initCrispLoadingAnimation() {
   const smallElements = container.querySelectorAll(".crisp-header__top, .crisp-header__p");
   const sliderNav = document.querySelector(".navbar");
   
-  /* GSAP Timeline */
+
   const tl = gsap.timeline({
     defaults: {
       ease: "expo.inOut",
@@ -31,7 +379,6 @@ function initCrispLoadingAnimation() {
     }
   });
   
-  /* GSAP SplitText */
   let split;
   if (heading.length) {
     split = new SplitText(heading, {
@@ -115,12 +462,12 @@ function initCrispLoadingAnimation() {
 }
 
 document.fonts.ready.then(() => {
-  initCrispLoadingAnimation();
-  //ScrollTrigger.refresh()
+  //initCrispLoadingAnimation();
+  //ScrollTrigger.refresh() 
 });
-}
 
 
+function initMaskTextScrollReveal() {
 /* Text Reveals */
 const splitConfig = {
   lines: { duration: 1, stagger: 0.08 },
@@ -128,8 +475,14 @@ const splitConfig = {
   chars: { duration: 0.4, stagger: 0.01 }
 }
 
-function initMaskTextScrollReveal() {
-  document.querySelectorAll('[data-split="heading"]').forEach(heading => {
+let headings = document.querySelectorAll('[data-split="heading"]')
+  
+  headings.forEach(heading => {
+    gsap.set(heading, { autoAlpha: 1 })
+  });
+
+
+  nextPage.querySelectorAll('[data-split="heading"]').forEach(heading => {
     const type = heading.dataset.splitReveal || 'lines'
     const typesToSplit =
       type === 'lines' ? ['lines'] :
@@ -162,14 +515,6 @@ function initMaskTextScrollReveal() {
     })
   })
 }
-
-  let headings = document.querySelectorAll('[data-split="heading"]')
-  
-  headings.forEach(heading => {
-    gsap.set(heading, { autoAlpha: 1 })
-  });
-
-initMaskTextScrollReveal()
 
 /* Scramble Eyebrow */
 function initScrambleOnScrollLoop() {
@@ -215,8 +560,6 @@ function initScrambleOnScrollLoop() {
   });
 }
 
-initScrambleOnScrollLoop();
-
 /* Blinking Eyebrow */
 function initBlinkOnScrollLoop() {
   let targets = document.querySelectorAll('.dot');
@@ -246,52 +589,51 @@ function initBlinkOnScrollLoop() {
   });
 }
 
-initBlinkOnScrollLoop();
 
 /* Check section for navbar color change */
-function initCheckSectionThemeScroll() {
-  const navBarHeight = document.querySelector("[data-nav-bar-height]");
-  const themeObserverOffset = navBarHeight ? navBarHeight.offsetHeight / 2 : 0;
+// function initCheckSectionThemeScroll() {
+//   const navBarHeight = document.querySelector("[data-nav-bar-height]");
+//   const themeObserverOffset = navBarHeight ? navBarHeight.offsetHeight / 2 : 0;
 
-  function checkThemeSection() {
-    const themeSections = document.querySelectorAll("[data-theme-section]");
+//   function checkThemeSection() {
+//     const themeSections = document.querySelectorAll("[data-theme-section]");
 
-    themeSections.forEach(function (themeSection) {
-      const rect = themeSection.getBoundingClientRect();
-      const themeSectionTop = rect.top;
-      const themeSectionBottom = rect.bottom;
+//     themeSections.forEach(function (themeSection) {
+//       const rect = themeSection.getBoundingClientRect();
+//       const themeSectionTop = rect.top;
+//       const themeSectionBottom = rect.bottom;
 
-      if (
-        themeSectionTop <= themeObserverOffset &&
-        themeSectionBottom >= themeObserverOffset
-      ) {
-        const themeSectionActive =
-          themeSection.getAttribute("data-theme-section");
-        document.querySelectorAll("[data-theme-nav]").forEach(function (elem) {
-          if (elem.getAttribute("data-theme-nav") !== themeSectionActive) {
-            elem.setAttribute("data-theme-nav", themeSectionActive);
-          }
-        });
+//       if (
+//         themeSectionTop <= themeObserverOffset &&
+//         themeSectionBottom >= themeObserverOffset
+//       ) {
+//         const themeSectionActive =
+//           themeSection.getAttribute("data-theme-section");
+//         document.querySelectorAll("[data-theme-nav]").forEach(function (elem) {
+//           if (elem.getAttribute("data-theme-nav") !== themeSectionActive) {
+//             elem.setAttribute("data-theme-nav", themeSectionActive);
+//           }
+//         });
 
-        const bgSectionActive = themeSection.getAttribute("data-bg-section");
-        document.querySelectorAll("[data-bg-nav]").forEach(function (elem) {
-          if (elem.getAttribute("data-bg-nav") !== bgSectionActive) {
-            elem.setAttribute("data-bg-nav", bgSectionActive);
-          }
-        });
-      }
-    });
-  }
+//         const bgSectionActive = themeSection.getAttribute("data-bg-section");
+//         document.querySelectorAll("[data-bg-nav]").forEach(function (elem) {
+//           if (elem.getAttribute("data-bg-nav") !== bgSectionActive) {
+//             elem.setAttribute("data-bg-nav", bgSectionActive);
+//           }
+//         });
+//       }
+//     });
+//   }
 
-  function startThemeCheck() {
-    document.addEventListener("scroll", checkThemeSection);
-  }
+//   function startThemeCheck() {
+//     document.addEventListener("scroll", checkThemeSection);
+//   }
 
-  checkThemeSection();
-  startThemeCheck();
-}
+//   checkThemeSection();
+//   startThemeCheck();
+// }
 
-initCheckSectionThemeScroll();
+// initCheckSectionThemeScroll();
 
 
 /* Global Parallax */
@@ -309,7 +651,7 @@ function initGlobalParallax() {
       const { isMobile, isMobileLandscape, isTablet } = context.conditions
 
       const ctx = gsap.context(() => {
-        document.querySelectorAll('[data-parallax="trigger"]').forEach((trigger) => {
+        nextPage.querySelectorAll('[data-parallax="trigger"]').forEach((trigger) => {
             // Check if this trigger has to be disabled on smaller breakpoints
             const disable = trigger.getAttribute("data-parallax-disable")
             if (
@@ -370,12 +712,8 @@ function initGlobalParallax() {
   )
 }
 
-initGlobalParallax()
 
-
-/* HOMEPAGE */
-if (page === "home") {
-
+function initScaleReveal() {
 /* Product Reveal Animation */
 const productRevealConfig = {
   duration: 1.5,
@@ -383,7 +721,6 @@ const productRevealConfig = {
   ease: 'expo.out'
 }
 
-function initScaleReveal() {
   const products = document.querySelectorAll('[data-scale-reveal]')
 
   products.forEach(product => {
@@ -406,8 +743,6 @@ function initScaleReveal() {
     })
   })
 }
-
-initScaleReveal()
 
 /* Sticky services overview */
 function initStickyFeatures(root){
@@ -520,62 +855,10 @@ function initStickyFeatures(root){
   });
 }
 
- // initStickyFeatures();
-
-/* Impact List Scroll */
-function initImpactScroll() {
-  const section = document.querySelector('.section_impact');
-  const list = document.querySelector('.impact-list');
-  const items = document.querySelectorAll('.impact-item');
-
-  // width we need to scroll horizontally
-  const totalWidth = list.scrollWidth - window.innerWidth;
-
-  // timeline controlling the horizontal scroll
-  const tl = gsap.timeline({
-    scrollTrigger: {
-      trigger: section,
-      start: "top top",
-      end: () => "+=" + totalWidth,
-      scrub: true,
-      pin: true,
-    }
-  });
-
-  // move the LIST horizontally
-  tl.to(list, {
-    x: -totalWidth,
-    ease: "none"
-  });
-
-  items.forEach((item) => {
-    gsap.from(item, {
-      opacity: 0,
-      scrollTrigger: {
-        trigger: item,
-        start: "left 85%",
-        end: "left 30%",
-        scrub: true,
-        //markers: true,
-        containerAnimation: tl,
-        toggleActions: "play none none none"
-      }
-    });
-  });
-}
-
-initImpactScroll();
-
-
-}
-
-/* ABOUT */
-if (page === "about") {
-
 /* Highlight Text on Scroll */  
 function initHighlightText(){
 
-  let splitHeadingTargets = document.querySelectorAll("[data-highlight-text]")
+  let splitHeadingTargets = nextPage.querySelectorAll("[data-highlight-text]")
   splitHeadingTargets.forEach((heading) => {
     
     const scrollStart = heading.getAttribute("data-highlight-scroll-start") || "top 90%"
@@ -608,6 +891,59 @@ function initHighlightText(){
   });
 }
 
-initHighlightText();
 
+/* Video on scroll  */
+async function createScrollVideo(options) {
+  const { videoSelector, safariSrc, chromeSrc, onSetup } = options;
+
+  // Browser check for optimal video format
+  const testVideo = document.createElement("video");
+  const supportsHEVC = testVideo.canPlayType('video/mp4; codecs="hvc1"') !== "";
+  const supportsVP9 = testVideo.canPlayType('video/webm; codecs="vp9"') !== "";
+
+  // Pick the best source, fallback to whatever is provided
+  const videoUrl = (supportsHEVC && safariSrc) ? safariSrc : (supportsVP9 && chromeSrc) ? chromeSrc : (chromeSrc || safariSrc);
+
+  // Fetch as Blob for smooth scrolling (forces cache)
+  const response = await fetch(videoUrl, { cache: "force-cache" });
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+
+  const video = document.querySelector(videoSelector);
+  if(!video) return; // Failsafe if element doesn't exist
+  
+  video.src = blobUrl;
+  video.load();
+
+  const setup = () => {
+    if (video.readyState >= 1) {
+      video.pause();
+      onSetup(video, video.duration);
+    }
+  };
+
+  video.addEventListener("loadedmetadata", setup);
+  if (video.readyState >= 1) setup();
 }
+function initVideoScrub() {
+  createScrollVideo({
+    videoSelector: "#scroll-video", // MATCH THIS TO YOUR WEBFLOW VIDEO ID
+    safariSrc: "https://pedroneves-duall.github.io/pradecon-video/steps.mp4", // e.g., an HEVC optimized .mov
+    chromeSrc: "https://pedroneves-duall.github.io/pradecon-video/steps.mp4", // e.g., a VP9 optimized .webm
+    
+    onSetup: (video, duration) => {
+      ScrollTrigger.create({
+        trigger: ".steps-container", // The tall section dictating scroll length
+        start: "top top",
+        end: "bottom bottom", 
+        scrub: true, // This locks playback to the scrollbar
+        onUpdate: (self) => {
+          // self.progress goes from 0.0 to 1.0 as you scroll
+          video.currentTime = self.progress * duration;
+        }
+      });
+    }
+  });
+}
+
+
