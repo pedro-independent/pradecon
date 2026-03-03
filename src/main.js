@@ -55,7 +55,7 @@ function initAfterEnterFunctions(next) {
 
   // Runs after enter animation completes
   if (has('[data-split="heading"]')) initMaskTextScrollReveal();
-  //if (has('[data-sticky-feature-wrap]')) initStickyFeatures();
+  if (has('[data-sticky-feature-wrap]')) initStickyFeatures();
   if (has('[data-scale-reveal]')) initScaleReveal();
   if (has('[data-parallax="trigger"]')) initGlobalParallax();
   if (has('[data-highlight-text]')) initHighlightText();
