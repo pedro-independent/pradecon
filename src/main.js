@@ -591,50 +591,51 @@ function initBlinkOnScrollLoop() {
 
 
 /* Check section for navbar color change */
-// function initCheckSectionThemeScroll() {
-//   const navBarHeight = document.querySelector("[data-nav-bar-height]");
-//   const themeObserverOffset = navBarHeight ? navBarHeight.offsetHeight / 2 : 0;
+function initCheckSectionThemeScroll() {
 
-//   function checkThemeSection() {
-//     const themeSections = document.querySelectorAll("[data-theme-section]");
+  // Get detection offset, in this case the navbar
+  const navBarHeight = document.querySelector("[data-nav-bar-height]")
+  const themeObserverOffset = navBarHeight ? navBarHeight.offsetHeight / 2 : 0;
 
-//     themeSections.forEach(function (themeSection) {
-//       const rect = themeSection.getBoundingClientRect();
-//       const themeSectionTop = rect.top;
-//       const themeSectionBottom = rect.bottom;
+  function checkThemeSection() {
+    const themeSections = document.querySelectorAll("[data-theme-section]");
 
-//       if (
-//         themeSectionTop <= themeObserverOffset &&
-//         themeSectionBottom >= themeObserverOffset
-//       ) {
-//         const themeSectionActive =
-//           themeSection.getAttribute("data-theme-section");
-//         document.querySelectorAll("[data-theme-nav]").forEach(function (elem) {
-//           if (elem.getAttribute("data-theme-nav") !== themeSectionActive) {
-//             elem.setAttribute("data-theme-nav", themeSectionActive);
-//           }
-//         });
+    themeSections.forEach(function(themeSection) {
+      const rect = themeSection.getBoundingClientRect();
+      const themeSectionTop = rect.top;
+      const themeSectionBottom = rect.bottom;
 
-//         const bgSectionActive = themeSection.getAttribute("data-bg-section");
-//         document.querySelectorAll("[data-bg-nav]").forEach(function (elem) {
-//           if (elem.getAttribute("data-bg-nav") !== bgSectionActive) {
-//             elem.setAttribute("data-bg-nav", bgSectionActive);
-//           }
-//         });
-//       }
-//     });
-//   }
+      // If the offset is between the top & bottom of the current section
+      if (themeSectionTop <= themeObserverOffset && themeSectionBottom >= themeObserverOffset) {
+        // Check [data-theme-section]
+        const themeSectionActive = themeSection.getAttribute("data-theme-section");
+        document.querySelectorAll("[data-theme-nav]").forEach(function(elem) {
+          if (elem.getAttribute("data-theme-nav") !== themeSectionActive) {
+            elem.setAttribute("data-theme-nav", themeSectionActive);
+          }
+        });
 
-//   function startThemeCheck() {
-//     document.addEventListener("scroll", checkThemeSection);
-//   }
+        // Check [data-bg-section]
+        const bgSectionActive = themeSection.getAttribute("data-bg-section");
+        document.querySelectorAll("[data-bg-nav]").forEach(function(elem) {
+          if (elem.getAttribute("data-bg-nav") !== bgSectionActive) {
+            elem.setAttribute("data-bg-nav", bgSectionActive);
+          }
+        });
+      }
+    });
+  }
 
-//   checkThemeSection();
-//   startThemeCheck();
-// }
+  function startThemeCheck() {
+    document.addEventListener("scroll", checkThemeSection);
+  }
 
-// initCheckSectionThemeScroll();
+  // Initial check and start listening for scroll
+  checkThemeSection();
+  startThemeCheck();
+}
 
+initCheckSectionThemeScroll();
 
 /* Global Parallax */
 function initGlobalParallax() {
@@ -745,6 +746,7 @@ const productRevealConfig = {
 }
 
 /* Sticky services overview */
+/* Sticky services overview */
 function initStickyFeatures(root){
   const wraps = Array.from((root || document).querySelectorAll("[data-sticky-feature-wrap]"));
   if(!wraps.length) return;
@@ -766,9 +768,9 @@ function initStickyFeatures(root){
     if(count < 1) return;
 
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const DURATION = rm ? 0.01 : 0.75; // If user prefers reduced motion, reduce duration
+    const DURATION = rm ? 0.01 : 0.75; 
     const EASE = "power4.inOut";
-    const SCROLL_AMOUNT = 0.9; // % of scroll used for step transitions
+    const SCROLL_AMOUNT = 0.9; 
 
     const getTexts = el => Array.from(el.querySelectorAll("[data-sticky-feature-text]"));
 
@@ -799,7 +801,6 @@ function initStickyFeatures(root){
       animateIn(items[toIndex]);
     }
 
-    // Fade out text content items
     function animateOut(itemEl){
       const texts = getTexts(itemEl);
       gsap.to(texts, {
@@ -811,7 +812,6 @@ function initStickyFeatures(root){
       });
     }
 
-    // Reveal incoming text content items
     function animateIn(itemEl){
       const texts = getTexts(itemEl);
       gsap.set(itemEl, { autoAlpha: 1 });
@@ -829,22 +829,38 @@ function initStickyFeatures(root){
 
     const steps = Math.max(1, count - 1);
 
+    // --- NEW: STICKY SETUP ---
+    // Make the outer wrap act as a tall scroll track
+    // 100vh for the initial view + 100vh for each step transition
+    w.style.height = `${(steps + 1) * 100}vh`;
+    
+    // Fallback: Ensure the inner scroll element is sticky just in case it wasn't set in Webflow
+    const stickyScroll = w.querySelector('.sticky-features__scroll');
+    if(stickyScroll) {
+      stickyScroll.style.position = 'sticky';
+      stickyScroll.style.top = '0px';
+      stickyScroll.style.height = '100vh';
+    }
+
+    // --- UPDATED: SCROLLTRIGGER ---
     ScrollTrigger.create({
       trigger: w,
-      start: "center center",
-      end: () => `+=${steps * 100}%`,
-      pin: true,
+      start: "top top",         // Start when the top of the track hits the top of the viewport
+      end: "bottom bottom",     // End when the bottom of the track hits the bottom of the viewport
       scrub: true,
       invalidateOnRefresh: true,
+      // pin: true, <-- REMOVED
       onUpdate: self => {
         const p = Math.min(self.progress, SCROLL_AMOUNT) / SCROLL_AMOUNT;
         let idx = Math.floor(p * steps + 1e-6);
         idx = Math.max(0, Math.min(steps, idx));
         
-        gsap.to(progressBar,{
-          scaleX: p,
-          ease: "none"
-        })
+        if (progressBar) {
+          gsap.to(progressBar,{
+            scaleX: p,
+            ease: "none"
+          });
+        }
         
         if (idx !== currentIndex) {
           transition(currentIndex, idx);
